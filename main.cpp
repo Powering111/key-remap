@@ -1,20 +1,38 @@
 #include <iostream>
+#include <string.h>
+
 #include <windows.h>
 #include <winerror.h>
 #include <winuser.h>
+
+#define TRAY_WINAPI 1
+#include "tray.h"
+
+#define UNUSED [[maybe_unused]]
+
+
+DWORD mainThreadID = GetCurrentThreadId();
 HHOOK kHook;
 bool capsPressed = false;
 bool dualKey = false;
 
+/// Keyboard stuff ///
 void input(WORD vkCode, WORD scanCode, bool keyup) {
-  INPUT input = {0};
-  input.type = INPUT_KEYBOARD;
-  input.ki.wVk = vkCode;
-  input.ki.wScan=scanCode;
-  input.ki.dwExtraInfo = (ULONG_PTR)0x12345678;
   bool is_extended_key = scanCode >> 8 == 0xE0;
-  input.ki.dwFlags = (keyup ? KEYEVENTF_KEYUP : 0) |
-                     (is_extended_key ? KEYEVENTF_EXTENDEDKEY : 0);
+
+  INPUT input = {
+    .type = INPUT_KEYBOARD,
+    .ki   = {
+      .wVk          = vkCode,
+      .wScan        = scanCode,
+      .dwFlags      = (DWORD)(
+                        (keyup ? KEYEVENTF_KEYUP : 0) |
+                        (is_extended_key ? KEYEVENTF_EXTENDEDKEY : 0)
+                      ),
+      .time         = 0,
+      .dwExtraInfo  = (ULONG_PTR)0x12345678
+    }
+  };
 
   SendInput(1, &input, sizeof(input));
 }
@@ -36,8 +54,7 @@ LRESULT CALLBACK hookKeyboard(int nCode, WPARAM wParam, LPARAM lParam) {
           if (dualKey) {
             input(VK_CONTROL, 0, 1);
             dualKey = false;
-          }
-          else{
+          } else {
             // Send Esc key
             input(VK_ESCAPE, 0, 0);
             input(VK_ESCAPE, 0, 1);
@@ -66,16 +83,50 @@ LRESULT CALLBACK hookKeyboard(int nCode, WPARAM wParam, LPARAM lParam) {
   return CallNextHookEx(kHook, nCode, wParam, lParam);
 }
 
+/// Tray stuff ///
+void toggle_cb(struct tray_menu *item);
+void quit_cb(struct tray_menu *item);
+
+struct tray tray = {
+    .icon = "resources/keycap.ico",
+    .menu = (struct tray_menu[]){{"Toggle me", 0, 0, toggle_cb, NULL},
+                                 {"-", 0, 0, NULL, NULL},
+                                 {"Quit", 0, 0, quit_cb, NULL},
+                                 {NULL, 0, 0, NULL, NULL}},
+};
+
+void toggle_cb(struct tray_menu *item) {
+	item->checked = !item->checked;
+	tray_update(&tray);
+}
+
+void quit_cb(UNUSED struct tray_menu *item) {
+  PostQuitMessage(0);
+  tray_exit();
+  PostThreadMessage(mainThreadID, WM_QUIT, 0, 0);
+}
+
+void tray_thread(UNUSED void *arg) {
+  tray_init(&tray);
+  while (tray_loop(1) == 0);
+  quit_cb(NULL);
+}
+
+/// Main ///
 int main() {
-  HANDLE mutex = CreateMutex(NULL, TRUE, "key-remap.single");
+  UNUSED HANDLE mutex = CreateMutex(NULL, TRUE, "key-remap.single");
   if (GetLastError() == ERROR_ALREADY_EXISTS) {
     MessageBox(NULL,"Program is already running!","Alert",MB_OK);
     return -1;
   }
 
+  CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)tray_thread, NULL, 0, NULL);
+
   kHook = SetWindowsHookEx(WH_KEYBOARD_LL, hookKeyboard, NULL, 0);
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0) > 0) {
+    if(msg.message == WM_QUIT) break;
+
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
