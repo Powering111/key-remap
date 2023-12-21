@@ -36,7 +36,7 @@ We welcome contributions from the open-source community to improve Key-Remap. If
 
 ## License
 
-Key-Remap is released under the [MIT License](https://opensource.org/licenses/MIT). Please review the [LICENSE](https://github.com/key-remap/key-remap/blob/main/LICENSE) file for more details.
+Key-Remap is released under the [MIT License](https://opensource.org/licenses/MIT). Please review the [LICENSE](LICENSE) file for more details.
 
 ## Acknowledgements
 
