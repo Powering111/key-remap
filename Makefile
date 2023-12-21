@@ -7,12 +7,13 @@ OBJS = $(SRCS:.cpp=.o)
 EXEC = keymap.exe
 RESOURCE_FILE = resource.rc
 
-# RM for cross-platform compatibility
-ifeq ($(OS),Windows_NT)
-	RM = del /Q /F
-else
+# Detect MSYS2 as a POSIX-compliant system
+ifdef MSYSTEM
 	RM = rm -f
+else
+	RM = del /Q /F
 endif
+
 
 all: release
 

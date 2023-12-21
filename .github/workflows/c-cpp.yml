@@ -1,0 +1,48 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+defaults:
+  run:
+    shell: msys2 {0}
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: >-
+          mingw-w64-x86_64-make
+          mingw-w64-x86_64-gcc
+
+    - uses: actions/checkout@v3
+
+    - name: Build with Make
+      run: mingw32-make  # Replace with the appropriate make command if needed
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v1.0.0  # Specify the version/tag name
+        release_name: Release v1.0.0  # Name your release
+        body: |
+          The first release. You do not need to build the source code manually now!
+
+    - name: Upload keymap.exe
+      uses: actions/upload-artifact@v2
+      with:
+        name: keymap-exe
+        path: keymap.exe  # Replace with the path to your executable
+
+    # Add steps for testing, additional deployment, etc.
