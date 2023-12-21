@@ -337,7 +337,15 @@ static void tray_update(struct tray *tray) {
   hmenu = _tray_menu(tray->menu, &id);
   SendMessage(hwnd, WM_INITMENUPOPUP, (WPARAM)hmenu, 0);
   HICON icon;
-  ExtractIconEx(tray->icon, 0, NULL, &icon, 1);
+
+  size_t len = strlen(tray->icon);
+  if (tray->icon != NULL &&
+      len > 4 &&
+      strcasecmp(tray->icon + len - 4, ".ico") != 0) {
+    icon = LoadIcon(GetModuleHandle(NULL), tray->icon);
+  } else {
+    ExtractIconEx(tray->icon, 0, &icon, NULL, 1);
+  }
   if (nid.hIcon) {
     DestroyIcon(nid.hIcon);
   }
